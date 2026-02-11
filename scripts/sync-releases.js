@@ -16,6 +16,10 @@ async function main() {
     (a, b) => new Date(b.published_at) - new Date(a.published_at),
   );
 
+  const scope = (process.env.SYNC_SCOPE || 'latest').trim().toLowerCase();
+  const filtered = applyScope(published, scope);
+  console.log(`Scope: "${scope}" -> checking ${filtered.length} of ${published.length} releases.\n`);
+
   fs.mkdirSync(RELEASES_DIR, { recursive: true });
 
   const existingFiles = new Set(
@@ -24,8 +28,8 @@ async function main() {
 
   let created = 0;
 
-  for (let i = 0; i < published.length; i++) {
-    const release = published[i];
+  for (let i = 0; i < filtered.length; i++) {
+    const release = filtered[i];
     const name = release.name?.trim();
     if (!name) {
       console.log(`Skipping release id=${release.id} - empty name`);
@@ -62,7 +66,7 @@ async function main() {
   }
 
   console.log(
-    `\nDone. ${created} new file(s) created, ${published.length - created} already existed or skipped.`,
+    `\nDone. ${created} new file(s) created, ${filtered.length - created} already existed or skipped.`,
   );
 
   if (created > 0) {
@@ -71,6 +75,24 @@ async function main() {
       String(created),
     );
   }
+}
+
+function applyScope(releases, scope) {
+  if (scope === 'all') return releases;
+
+  if (scope === 'latest') return releases.slice(0, 1);
+
+  const lastN = scope.match(/^last-(\d+)$/);
+  if (lastN) return releases.slice(0, parseInt(lastN[1], 10));
+
+  if (scope === 'last-month') {
+    const cutoff = new Date();
+    cutoff.setMonth(cutoff.getMonth() - 1);
+    return releases.filter((r) => new Date(r.published_at) >= cutoff);
+  }
+
+  console.warn(`Unknown scope "${scope}", falling back to "latest".`);
+  return releases.slice(0, 1);
 }
 
 async function fetchAllReleases() {

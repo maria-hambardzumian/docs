@@ -15,6 +15,22 @@ name: Sync GitHub Releases
 
 on:
   workflow_dispatch:
+    inputs:
+      scope:
+        description: 'How many releases to check'
+        required: false
+        default: 'latest'
+        type: choice
+        options:
+          - latest
+          - last-n
+          - last-month
+          - all
+      count:
+        description: 'Number of releases to check (only used with "last-n")'
+        required: false
+        default: '5'
+        type: string
 
 env:
   RELEASES_URL: https://api.github.com/repos/reportportal/reportportal/releases
@@ -39,6 +55,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
           RELEASES_URL: ${{ env.RELEASES_URL }}
+          SYNC_SCOPE: ${{ inputs.scope == 'last-n' && format('last-{0}', inputs.count) || inputs.scope }}
 
       - name: Check for changes
         id: changes
